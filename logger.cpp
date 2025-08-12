@@ -55,7 +55,7 @@ void Logger::Init(const LoggingConfig& cfg)
         throw std::runtime_error("No sinks specified for Logger");
     }
 
-    logger_ = std::make_shared<spdlog::logger>("botanika-agent", sinks.begin(), sinks.end());
+    logger_ = std::make_shared<spdlog::logger>("TreeManagement", sinks.begin(), sinks.end());
     spdlog::register_logger(logger_);
     logger_->set_level(levelFromString(cfg.level));
     logger_->flush_on(spdlog::level::info);
