@@ -59,7 +59,7 @@ int main()
     long long expected = 6LL * 1000000;
     std::cout << "expected=" << expected << "  actual=" << commonData << "\n";
 
-    TM_LOG_ERROR("Main Stoped After Thread ?");
+    TM_LOG_ERROR("Main Stoped After Thread ?")
     ***/
 
     int a,b;
