@@ -11,16 +11,18 @@ include(${CMAKE_BINARY_DIR}/conan_deps.cmake OPTIONAL)
 
 find_package(Boost REQUIRED COMPONENTS system filesystem)
 find_package(spdlog REQUIRED)
+
+add_subdirectory(common)
+
 add_executable(treeManagement
     main.cpp
-    logger.h
-    logger.cpp
 )
 
 target_link_libraries(treeManagement
     PRIVATE
     Boost::system
     spdlog::spdlog
+    common
 )
 
 include(GNUInstallDirs)

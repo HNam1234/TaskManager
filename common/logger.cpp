@@ -1,7 +1,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 
-#include "logger.h"
+#include "logger.hpp"
 
 namespace treeManagement
 {
