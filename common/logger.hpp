@@ -4,7 +4,7 @@
 #include <spdlog/spdlog.h>
 #include <memory>
 
-namespace treeManagement
+namespace taskManager
 {
 enum class SinkType
 {
@@ -45,7 +45,7 @@ private:
 
 #define TM_LOG_LEVEL(method, ...) \
 do { \
-        auto _logger = treeManagement::Logger::instance().get(); \
+        auto _logger = taskManager::Logger::instance().get(); \
         if (_logger) _logger->method(__VA_ARGS__); \
         else std::cerr << "[TM_LOG] Logger not initialized!\n"; \
 } while(0)

@@ -1,120 +1,62 @@
 #include <future>
 #include <iostream>
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/date_time/posix_time/posix_time_io.hpp>
 #include "logger.hpp"
 #include "sysinfo_utils.hpp"
 
 using namespace std;
 
-std::atomic<int> commonData = 0;
-std::mutex mtx;
-
-int slowAddTwoPositiveNumAsync(int a, int b)
-{
-    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-    if(a <= 0 || b <= 0)
-    {
-        throw std::runtime_error("Invalid Positive Number");
-    }
-    return a+b;
-}
-void printMyName ()
-{
-    for(int i = 0; i < 1000000; i++)
-    {
-        ++commonData;
-        if(i%1000 == 0)
-        {
-            TM_LOG_DEBUG("Nam {}", i);
-        }
-        if ((i & 2047) == 0) std::this_thread::yield();
-    }
-}
-
 int main()
 {
-    treeManagement::LoggingConfig LogConfig;
+    taskManager::LoggingConfig LogConfig;
     LogConfig.filePath = "tree.log";
     LogConfig.maxFileSize = 5;
     LogConfig.pattern = "%Y-%m-%d %H:%M:%S.%e [%^%l%$] %v";
     LogConfig.maxFiles = 3;
     LogConfig.level = "debug";
-    std::vector<treeManagement::SinkType> sinkTypes = {treeManagement::SinkType::Console, treeManagement::SinkType::File};
+    std::vector<taskManager::SinkType> sinkTypes = {taskManager::SinkType::Console, taskManager::SinkType::File};
     LogConfig.sinks = sinkTypes;
 
-    treeManagement::Logger::instance().Init(LogConfig);
+    taskManager::Logger::instance().Init(LogConfig);
 
-    /*** SIMPLE THREAD
-    std::thread newThread(printMyName);
-    std::thread newThread1(printMyName);
-    std::thread newThread2(printMyName);
-    std::thread newThread3(printMyName);
-    std::thread newThread4(printMyName);
-    std::thread newThread5(printMyName);
-    newThread.join();
-    newThread1.join();
-    newThread2.join();
-    newThread3.join();
-    newThread4.join();
-    newThread5.join();
-
-    long long expected = 6LL * 1000000;
-    std::cout << "expected=" << expected << "  actual=" << commonData << "\n";
-
-    TM_LOG_ERROR("Main Stoped After Thread ?")
-    ***/
     boost::asio::io_context io_ctx;
     constexpr int cpuMonitorIntervalMs = 500;
     SysInfoUtils::startAsyncCpuMonitor(io_ctx, cpuMonitorIntervalMs);
     std::thread proof_thread([&io_ctx]() {
             io_ctx.run();
         });
-
-    int a, b;
-    std::cout << "INPUT a number: ";
-    std::cin >> a;
-    std::cout << "INPUT b number: ";
-    std::cin >> b;
-    try {
-        std::future future = std::async(std::launch::async, slowAddTwoPositiveNumAsync, a, b);
-        while (true) {
-            std::future_status status = future.wait_for(std::chrono::milliseconds(1000));
-            if (status == std::future_status::ready) {
-                TM_LOG_DEBUG("Slow Add Result: {}", future.get());
-                break;
-            } else {
-                TM_LOG_DEBUG("Polling Slow Add Result...");
-            }
+    
+    while(1)
+    {
+        boost::posix_time::ptime now = boost::posix_time::second_clock::local_time();
+        const std::string str_time = to_simple_string(now);
+        TM_LOG_INFO("NEW SYSTEM INFO AT {}", str_time);
+        TM_LOG_INFO("CPU Usage: {}%", SysInfoUtils::getCpuUsage());
+        TM_LOG_INFO("Uptime: {} seconds", SysInfoUtils::getUptime());
+        auto memStatus = SysInfoUtils::getMemoryStatus();
+        if (memStatus.valid) {
+            TM_LOG_INFO("Memory Used: {:.2f} GB, Total: {:.2f} GB",
+                        memStatus.used, memStatus.total);
+        } else {
+            TM_LOG_ERROR("Failed to get memory status");
         }
-    } catch (const std::exception &e) {
-        TM_LOG_ERROR("ERROR: {}", e.what());
+        auto diskStatus = SysInfoUtils::getDiskStatus("/");
+        if (diskStatus.valid) {
+            TM_LOG_INFO("Disk Used: {:.2f} GB, Free: {:.2f} GB",
+                        diskStatus.used, diskStatus.free);
+        } else {
+            TM_LOG_ERROR("Failed to get disk status");
+        }
+        double temperature = SysInfoUtils::getTemperature();
+        if (temperature > 0.0) {
+            TM_LOG_INFO("CPU Temperature: {:.1f} °C", temperature);
+        } else {
+            TM_LOG_ERROR("Failed to get CPU temperature");
+        }
+        constexpr int time_sleep_ms = 500;
+        std::this_thread::sleep_for(std::chrono::milliseconds(time_sleep_ms));
     }
-    const int seconds = 5;
-    std::chrono::seconds time_sleep(seconds);
-
-    TM_LOG_INFO("CPU Usage: {}%", SysInfoUtils::getCpuUsage());
-    TM_LOG_INFO("Uptime: {} seconds", SysInfoUtils::getUptime());
-    auto memStatus = SysInfoUtils::getMemoryStatus();
-    if (memStatus.valid) {
-        TM_LOG_INFO("Memory Used: {:.2f} GB, Total: {:.2f} GB",
-                    memStatus.used, memStatus.total);
-    } else {
-        TM_LOG_ERROR("Failed to get memory status");
-    }
-    auto diskStatus = SysInfoUtils::getDiskStatus("/");
-    if (diskStatus.valid) {
-        TM_LOG_INFO("Disk Used: {:.2f} GB, Free: {:.2f} GB",
-                    diskStatus.used, diskStatus.free);
-    } else {
-        TM_LOG_ERROR("Failed to get disk status");
-    }
-    double temperature = SysInfoUtils::getTemperature();
-    if (temperature > 0.0) {
-        TM_LOG_INFO("CPU Temperature: {:.1f} °C", temperature);
-    } else {
-        TM_LOG_ERROR("Failed to get CPU temperature");
-    }
-    TM_LOG_INFO("Console will close in {} seconds", seconds);
-    std::this_thread::sleep_for(time_sleep);
     proof_thread.join();
     SysInfoUtils::stopAsyncCpuMonitor();    
     return 0;
